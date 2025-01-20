@@ -195,15 +195,6 @@ namespace POE2TradeHelper
                 var webhookUrl = settings.DiscordWebhook;
                 using var client = new HttpClient();
 
-                // Load our trade icon and convert it to a base64 string for the message
-                string avatar_url;
-                using (var ms = new MemoryStream())
-                {
-                    Properties.Resources.trade_icon_png.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
-                    byte[] imageBytes = ms.ToArray();
-                    avatar_url = $"data:image/png;base64,{Convert.ToBase64String(imageBytes)}";
-                }
-
                 // Create a nice looking Discord embed with our trade message
                 var embed = new
                 {
@@ -217,8 +208,7 @@ namespace POE2TradeHelper
                             timestamp = DateTime.UtcNow.ToString("o")
                         }
                     },
-                    username = "POE2 Trade Helper",
-                    avatar_url = avatar_url
+                    username = "POE2 Trade Helper"
                 };
 
                 var json = System.Text.Json.JsonSerializer.Serialize(embed);
