@@ -198,7 +198,7 @@ namespace POE2TradeHelper
                 // Create a nice looking Discord embed with our trade message
                 var embed = new
                 {
-                    avatar_url = "https://raw.githubusercontent.com/johnburkhard/POE2TradeHelper/main/images/trade-icon.png",
+                    avatar_url = "https://raw.githubusercontent.com/johnburkhard/POE2TradeHelper/public-release/Resources/trade-icon.png",
                     username = "POE2 Trade Helper",
                     embeds = new[]
                     {
