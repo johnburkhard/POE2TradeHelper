@@ -198,6 +198,8 @@ namespace POE2TradeHelper
                 // Create a nice looking Discord embed with our trade message
                 var embed = new
                 {
+                    avatar_url = "https://raw.githubusercontent.com/johnburkhard/POE2TradeHelper/main/images/trade-icon.png",
+                    username = "POE2 Trade Helper",
                     embeds = new[]
                     {
                         new
@@ -207,9 +209,7 @@ namespace POE2TradeHelper
                             color = 3447003, // Discord's blue color
                             timestamp = DateTime.UtcNow.ToString("o")
                         }
-                    },
-                    username = "POE2 Trade Helper",
-                    avatar_url = "https://raw.githubusercontent.com/johnburkhard/POE2TradeHelper/main/images/trade-icon.png"
+                    }
                 };
 
                 var json = System.Text.Json.JsonSerializer.Serialize(embed);
