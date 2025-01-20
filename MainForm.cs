@@ -197,10 +197,8 @@ namespace POE2TradeHelper
                 using var client = new HttpClient();
 
                 // Create a nice looking Discord embed with our trade message
-                var message_data = new
+                var embed = new
                 {
-                    username = "POE2 Trade Helper",
-                    avatar_url = "https://raw.githubusercontent.com/johnburkhard/POE2TradeHelper/public-release/Resources/trade-icon.png",
                     embeds = new[]
                     {
                         new
@@ -210,10 +208,12 @@ namespace POE2TradeHelper
                             color = 3447003, // Discord's blue color
                             timestamp = DateTime.UtcNow.ToString("o")
                         }
-                    }
+                    },
+                    username = "POE2 Trade Helper",
+                    avatar_url = "https://raw.githubusercontent.com/johnburkhard/POE2TradeHelper/public-release/Resources/trade-icon.png"
                 };
 
-                var json = System.Text.Json.JsonSerializer.Serialize(message_data);
+                var json = System.Text.Json.JsonSerializer.Serialize(embed);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 
                 var response = await client.PostAsync(webhookUrl, content);
