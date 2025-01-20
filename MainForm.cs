@@ -42,6 +42,7 @@ namespace POE2TradeHelper
             InitializeComponent();
             settings = AppSettings.Load();
             InitializeUI();
+            SetupTrayIcon();
             ValidateRequirements();
         }
 
