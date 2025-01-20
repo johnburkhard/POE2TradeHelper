@@ -1,15 +1,13 @@
 namespace POE2TradeHelper;
 
+// Main application entry point and configuration
 static class Program
 {
-    /// <summary>
-    ///  The main entry point for the application.
-    /// </summary>
+    // Start up our Windows Forms application and show the main window
     [STAThread]
     static void Main()
     {
-        // To customize application configuration such as set high DPI settings or default font,
-        // see https://aka.ms/applicationconfiguration.
+        // Set up Windows Forms with standard DPI awareness and other defaults
         ApplicationConfiguration.Initialize();
         Application.Run(new MainForm());
     }    

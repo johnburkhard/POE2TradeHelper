@@ -10,9 +10,13 @@ namespace POE2TradeHelper
 {
     public partial class MainForm : Form
     {
+        // Path to our notification sound in the embedded resources
         private const string SOUND_FILE = "POE2TradeHelper.Resources.trade_alert.mp3";
+        
+        // Matches POE2 trade messages like "@From PlayerName: Hi, I would like to buy your item..."
         private static readonly Regex TradeMessageRegex = new(@"@From (.+?): (.*I would like to buy.*)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
+        // UI and system tray components
         private NotifyIcon? trayIcon;
         private ContextMenuStrip? trayMenu;
         private RichTextBox logBox = null!;
@@ -20,11 +24,17 @@ namespace POE2TradeHelper
         private Button btnClearLog = null!;
         private Button btnSave = null!;
         private Button btnExit = null!;
+
+        // File monitoring state
         private System.Windows.Forms.Timer? pollTimer;
-        private long lastPosition = 0;
+        private long lastPosition = 0;  // Tracks where we last read in the log file
         private bool isMonitoring = false;
+
+        // Audio playback components
         private WaveOutEvent? waveOut;
         private AudioFileReader? audioFile;
+        
+        // User settings
         private AppSettings settings;
 
         public MainForm()
@@ -35,20 +45,24 @@ namespace POE2TradeHelper
             ValidateRequirements();
         }
 
+        // Load saved settings into the UI fields
         private void InitializeUI()
         {
-            // Load settings into UI
             txtClientPath.Text = settings.ClientLogPath;
             txtWebhook.Text = settings.DiscordWebhook;
             chkSoundNotify.Checked = settings.EnableSoundNotification;
             chkDiscordNotify.Checked = settings.EnableDiscordNotification;
         }
 
+        // Make sure we have everything we need to run:
+        // - Access to POE2 client log
+        // - Sound file for notifications
+        // - Valid Discord webhook (if enabled)
         private void ValidateRequirements()
         {
             LogMessage("Initializing POE2 Trade Helper...");
 
-            // Check client log path
+            // First, check if we can read the POE2 log file
             if (string.IsNullOrEmpty(settings.ClientLogPath))
             {
                 LogMessage("ERROR: Client log path is not configured");
@@ -72,7 +86,7 @@ namespace POE2TradeHelper
                 return;
             }
 
-            // Check sound file
+            // Check if our notification sound is available
             using var stream = System.Reflection.Assembly.GetExecutingAssembly().GetManifestResourceStream(SOUND_FILE);
             if (stream == null)
             {
@@ -84,15 +98,14 @@ namespace POE2TradeHelper
                 LogMessage("✓ Sound file found");
             }
 
-            // Check Discord webhook
+            // Validate Discord webhook if notifications are enabled
             if (string.IsNullOrEmpty(settings.DiscordWebhook))
             {
                 LogMessage("ERROR: Discord webhook URL not configured");
                 return;
             }
 
-            // Don't validate webhook URL - Discord only accepts POST requests
-            // Just check if it's a valid Discord webhook URL format
+            // Basic format check for Discord webhook - we can't test it without sending a message
             if (!settings.DiscordWebhook.StartsWith("https://discord.com/api/webhooks/"))
             {
                 LogMessage("ERROR: Invalid Discord webhook URL format");
@@ -103,21 +116,23 @@ namespace POE2TradeHelper
             LogMessage("Ready to start monitoring. Click 'Start Monitoring' to begin.");
         }
 
+        // Save and validate user settings, making sure we can still access everything we need
         private void SaveSettings(object? sender, EventArgs e)
         {
-            // If currently monitoring, stop it
+            // Stop monitoring while we update settings
             if (isMonitoring)
             {
                 StopMonitoring();
                 LogMessage("Monitoring stopped to apply new settings", Color.Red);
             }
 
+            // Keep track of what changed so we can log it
             var oldWebhook = settings.DiscordWebhook;
             var oldLogPath = settings.ClientLogPath;
             var oldSoundEnabled = settings.EnableSoundNotification;
             var oldDiscordEnabled = settings.EnableDiscordNotification;
 
-            // Validate client log path before saving
+            // Make sure we can actually read the log file before saving the path
             var newLogPath = txtClientPath.Text.Trim();
             if (!File.Exists(newLogPath))
             {
@@ -137,17 +152,18 @@ namespace POE2TradeHelper
                 return;
             }
 
+            // Save all the new settings
             settings.ClientLogPath = newLogPath;
             settings.DiscordWebhook = txtWebhook.Text.Trim();
             settings.EnableSoundNotification = chkSoundNotify.Checked;
             settings.EnableDiscordNotification = chkDiscordNotify.Checked;
             settings.Save();
 
-            // Update the textboxes with trimmed values
+            // Update UI with cleaned up values
             txtClientPath.Text = settings.ClientLogPath;
             txtWebhook.Text = settings.DiscordWebhook;
 
-            // Log what changed
+            // Let the user know what changed
             if (oldLogPath != settings.ClientLogPath)
                 LogMessage($"Client log path updated to: {settings.ClientLogPath}", Color.Cyan);
             if (oldWebhook != settings.DiscordWebhook)
@@ -160,6 +176,7 @@ namespace POE2TradeHelper
             LogMessage("Settings saved successfully");
             MessageBox.Show("Settings saved successfully", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
+            // Make sure everything still works with the new settings
             LogMessage("Validating new settings...");
             ValidateRequirements();
 
@@ -167,6 +184,7 @@ namespace POE2TradeHelper
                 LogMessage("Click 'Start Monitoring' to resume monitoring with new settings");
         }
 
+        // Send a trade notification to Discord using their webhook API
         private async void SendDiscordNotification(string message)
         {
             if (!settings.EnableDiscordNotification)
@@ -177,7 +195,7 @@ namespace POE2TradeHelper
                 var webhookUrl = settings.DiscordWebhook;
                 using var client = new HttpClient();
 
-                // Convert the icon to a base64 string for the Discord message
+                // Load our trade icon and convert it to a base64 string for the message
                 string avatar_url;
                 using (var ms = new MemoryStream())
                 {
@@ -186,7 +204,7 @@ namespace POE2TradeHelper
                     avatar_url = $"data:image/png;base64,{Convert.ToBase64String(imageBytes)}";
                 }
 
-                // Format the message into a nice Discord embed
+                // Create a nice looking Discord embed with our trade message
                 var embed = new
                 {
                     embeds = new[]
@@ -195,7 +213,7 @@ namespace POE2TradeHelper
                         {
                             title = "New Trade Request",
                             description = message,
-                            color = 3447003, // Blue color
+                            color = 3447003, // Discord's blue color
                             timestamp = DateTime.UtcNow.ToString("o")
                         }
                     },
@@ -218,6 +236,7 @@ namespace POE2TradeHelper
             }
         }
 
+        // Play our trade notification sound using NAudio
         private void PlayNotificationSound()
         {
             try
@@ -225,6 +244,7 @@ namespace POE2TradeHelper
                 if (!settings.EnableSoundNotification)
                     return;
 
+                // Get our embedded sound file
                 using var stream = System.Reflection.Assembly.GetExecutingAssembly().GetManifestResourceStream(SOUND_FILE);
                 if (stream == null)
                 {
@@ -232,24 +252,25 @@ namespace POE2TradeHelper
                     return;
                 }
 
-                // Create a temporary file for NAudio
+                // NAudio needs a real file, so we'll make a temporary one
                 var tempFile = Path.GetTempFileName();
                 using (var fileStream = File.Create(tempFile))
                 {
                     stream.CopyTo(fileStream);
                 }
 
-                // Stop and dispose any existing audio
+                // Clean up any previous sound that was playing
                 waveOut?.Stop();
                 waveOut?.Dispose();
                 audioFile?.Dispose();
 
+                // Play the new sound
                 audioFile = new AudioFileReader(tempFile);
                 waveOut = new WaveOutEvent();
                 waveOut.Init(audioFile);
                 waveOut.Play();
 
-                // Delete temp file after a delay
+                // Clean up our temp file after a second
                 Task.Delay(1000).ContinueWith(_ => 
                 {
                     try { File.Delete(tempFile); } 
@@ -262,6 +283,7 @@ namespace POE2TradeHelper
             }
         }
 
+        // Set up the system tray icon and its right-click menu
         private void SetupTrayIcon()
         {
             trayMenu = new ContextMenuStrip();
@@ -277,9 +299,10 @@ namespace POE2TradeHelper
                 Text = "POE2 Trade Helper"
             };
 
+            // Double-clicking the tray icon shows the main window
             trayIcon.DoubleClick += (s, e) => { this.Show(); this.WindowState = FormWindowState.Normal; };
 
-            // Form closing behavior
+            // Hide to tray instead of closing when user clicks X
             this.FormClosing += (s, e) =>
             {
                 if (e.CloseReason == CloseReason.UserClosing)
@@ -290,6 +313,7 @@ namespace POE2TradeHelper
             };
         }
 
+        // Start/stop monitoring when the user clicks the button
         private void ToggleMonitoring(object? sender, EventArgs e)
         {
             if (isMonitoring)
@@ -302,25 +326,27 @@ namespace POE2TradeHelper
             }
         }
 
+        // Start monitoring the POE2 log file for trade messages
         private void StartMonitoring()
         {
             if (isMonitoring) return;
 
             try
             {
-                // Get current file position
+                // Start reading from the end of the file
                 using (var fs = new FileStream(settings.ClientLogPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                 {
                     lastPosition = fs.Length;
                     LogMessage($"Starting to monitor from position: {lastPosition}");
                 }
 
-                // Set up polling timer
+                // Check for new messages every second
                 pollTimer = new System.Windows.Forms.Timer();
-                pollTimer.Interval = 1000; // Check every second
+                pollTimer.Interval = 1000;
                 pollTimer.Tick += (s, e) => CheckForNewContent();
                 pollTimer.Start();
 
+                // Update UI to show we're monitoring
                 isMonitoring = true;
                 btnToggleMonitoring.Text = "Stop Monitoring";
                 if (trayMenu?.Items.Count > 1)
@@ -334,10 +360,12 @@ namespace POE2TradeHelper
             }
         }
 
+        // Stop monitoring the POE2 log file
         private void StopMonitoring()
         {
             if (!isMonitoring) return;
 
+            // Clean up the timer
             if (pollTimer != null)
             {
                 pollTimer.Stop();
@@ -345,6 +373,7 @@ namespace POE2TradeHelper
                 pollTimer = null;
             }
 
+            // Update UI to show we've stopped
             isMonitoring = false;
             btnToggleMonitoring.Text = "Start Monitoring";
             if (trayMenu?.Items.Count > 1)
@@ -353,18 +382,21 @@ namespace POE2TradeHelper
             LogMessage("Monitoring stopped", Color.Red);
         }
 
+        // Check the log file for new trade messages
         private void CheckForNewContent()
         {
             try
             {
                 using var fs = new FileStream(settings.ClientLogPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                 
+                // Handle case where log file was cleared/reset
                 if (lastPosition > fs.Length)
                 {
                     LogMessage("File was truncated, resetting position");
                     lastPosition = 0;
                 }
 
+                // Only read if there's new content
                 if (fs.Length > lastPosition)
                 {
                     using var reader = new StreamReader(fs);
@@ -373,6 +405,7 @@ namespace POE2TradeHelper
                     string? line;
                     while ((line = reader.ReadLine()) != null)
                     {
+                        // Look for trade messages in each new line
                         var match = TradeMessageRegex.Match(line);
                         
                         if (match.Success)
@@ -383,6 +416,7 @@ namespace POE2TradeHelper
                             var tradeMessage = $"From {player}: {message}";
                             LogMessage($"Trade message detected: {tradeMessage}");
                             
+                            // Send notifications based on user settings
                             if (settings.EnableSoundNotification)
                                 PlayNotificationSound();
                                 
@@ -400,6 +434,7 @@ namespace POE2TradeHelper
             }
         }
 
+        // Add a timestamped message to our log window with optional color
         private void LogMessage(string message, Color? color = null)
         {
             if (logBox.InvokeRequired)
@@ -408,12 +443,11 @@ namespace POE2TradeHelper
                 return;
             }
 
-            // Add timestamp
             string timestamp = DateTime.Now.ToString("HH:mm:ss");
             logBox.SelectionStart = logBox.TextLength;
             logBox.SelectionLength = 0;
             
-            // Set color based on message type or passed color
+            // Color-code different types of messages
             if (color != null)
             {
                 logBox.SelectionColor = color.Value;
@@ -440,12 +474,14 @@ namespace POE2TradeHelper
             logBox.ScrollToCaret();
         }
 
+        // Helper to create an icon from a PNG file
         private Icon CreateIconFromPng(string iconPath)
         {
             using var bitmap = new Bitmap(iconPath);
             return Icon.FromHandle(bitmap.GetHicon());
         }
 
+        // Clean up all our resources when closing
         protected override void Dispose(bool disposing)
         {
             if (disposing)
