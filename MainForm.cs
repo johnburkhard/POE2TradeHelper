@@ -177,6 +177,15 @@ namespace POE2TradeHelper
                 var webhookUrl = settings.DiscordWebhook;
                 using var client = new HttpClient();
 
+                // Convert the icon to a base64 string for the Discord message
+                string avatar_url;
+                using (var ms = new MemoryStream())
+                {
+                    Properties.Resources.trade_icon_png.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+                    byte[] imageBytes = ms.ToArray();
+                    avatar_url = $"data:image/png;base64,{Convert.ToBase64String(imageBytes)}";
+                }
+
                 // Format the message into a nice Discord embed
                 var embed = new
                 {
@@ -191,7 +200,7 @@ namespace POE2TradeHelper
                         }
                     },
                     username = "POE2 Trade Helper",
-                    avatar_url = "https://www.pathofexile.com/image/favicon.png"
+                    avatar_url = avatar_url
                 };
 
                 var json = System.Text.Json.JsonSerializer.Serialize(embed);

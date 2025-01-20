@@ -41,5 +41,12 @@ namespace POE2TradeHelper.Properties {
                 return ((System.Drawing.Icon)(obj));
             }
         }
+        
+        internal static System.Drawing.Bitmap trade_icon_png {
+            get {
+                object obj = ResourceManager.GetObject("trade_icon_png", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
     }
 }
