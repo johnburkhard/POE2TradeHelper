@@ -208,7 +208,8 @@ namespace POE2TradeHelper
                             timestamp = DateTime.UtcNow.ToString("o")
                         }
                     },
-                    username = "POE2 Trade Helper"
+                    username = "POE2 Trade Helper",
+                    avatar_url = "https://raw.githubusercontent.com/johnburkhard/POE2TradeHelper/main/images/trade-icon.png"
                 };
 
                 var json = System.Text.Json.JsonSerializer.Serialize(embed);
